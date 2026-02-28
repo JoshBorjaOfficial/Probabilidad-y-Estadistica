@@ -1,0 +1,232 @@
+#include <stdio.h>
+#include <math.h>
+
+#define Min_Datos 2
+#define Max_Datos 200
+#define Min_Percentil 1
+#define Max_Percentil 100
+
+/* Función para cambiar de lugar dos elementos*/
+void Intercambio(float *a, float *b) {
+    float Temp = *a;
+    *a = *b;
+    *b = Temp;
+}
+
+/*Función para acomodar el pivote en el centro y acomodar los menores y mayores*/
+int Particion(float arr[], int menor, int mayor) {
+    int centro = menor + (mayor - menor) / 2;
+
+    /*Mediana de Tres: Comparamos inicio, centro y fin
+    Esto garantiza que el pivote no sea ni el más pequeño ni el más grande.*/
+    if (arr[menor] > arr[centro]) {
+        Intercambio(&arr[menor], &arr[centro]);
+    }
+
+    if (arr[menor] > arr[mayor]) {
+        Intercambio(&arr[menor], &arr[mayor]);
+    }
+
+    if (arr[centro] > arr[mayor]) {
+        Intercambio(&arr[centro], &arr[mayor]);
+    }
+
+    /*Movemos el pivote al final*/
+    Intercambio(&arr[centro], &arr[mayor]);
+    float pivote = arr[mayor];
+    int i = (menor - 1);
+
+    for (int j = menor; j < mayor; j++) {
+        if (arr[j] < pivote) {
+            i++;
+            Intercambio(&arr[i], &arr[j]);
+        }
+    }
+
+    /*El pivote salta de la última posición a su lugar definitivo*/
+    Intercambio(&arr[i + 1], &arr[mayor]);
+    return (i + 1);
+}
+
+/* Función Recursiva: Divide y Vencerás*/
+void Quick_Sort(float arr[], int menor, int mayor) {
+    if (menor < mayor) {
+        int idx_pivote = Particion(arr, menor, mayor);
+        Quick_Sort(arr, menor, idx_pivote - 1);
+        Quick_Sort(arr, idx_pivote + 1, mayor);
+    }
+}
+
+int main() {
+    float datos[Max_Datos];
+    int n;
+    printf("Tamaño de la muestra: ");
+    scanf("%d", &n);
+
+    if(n < Min_Datos || n > Max_Datos) {
+        printf("Se necesitan entre %d y %d datos.\n", Min_Datos, Max_Datos);
+        return 1;
+    }
+
+    float suma = 0;
+    for(int i = 0; i < n; i++) {
+        printf("Ingrese el dato [%d]: ", i + 1);
+        scanf("%f", &datos[i]);
+
+        suma = suma + datos[i];
+    }
+
+    char unidad[10];
+    printf("\nIngrese la unidad de medida (ej: m, ms, s, kg, ml): ");
+    scanf("%s", unidad);
+
+    float percentil[Max_Percentil];
+    int percentiles = 0;
+    printf("\nCantidad de percentiles: ");
+    scanf("%d", &percentiles);
+
+    if(percentiles < Min_Percentil || percentiles > Max_Percentil) {
+        printf("Se necesitan percentiles entre %d y %d", Min_Percentil, Max_Percentil);
+        return 1;
+    }
+
+    for(int i = 0; i < percentiles; i++) {
+        printf("Ingrese el percentil [%d]: ", i + 1);
+        scanf("%f", &percentil[i]);
+    }
+
+    Quick_Sort(datos, 0, n - 1);
+
+    printf("\nDatos ordenados: ");
+    for(int i = 0; i < n; i++) {
+        printf("%.2f ", datos[i]);
+    }
+    printf("\n");
+
+    /*Calculo Media Muestral*/
+    float Media_Muestral = suma / n;
+
+    /*Calculo Varianza Muestral*/
+    float suma_cuadrados = 0;
+    float suma_operacion = 0;
+    printf("\nTabla de Varianza Muestral\n");
+    printf("--------------------------------------------\n");
+    printf("|    xi      |   xi - x   |   (xi - x)^2   |\n");
+    printf("--------------------------------------------\n");
+
+    for(int i = 0; i < n; i++) {
+        float diferencia = datos[i] - Media_Muestral;
+        float dif_cuadrado = diferencia * diferencia;
+        suma_operacion += diferencia;
+        suma_cuadrados += dif_cuadrado;
+
+        // Imprimir cada fila alineada
+        printf("| %10.2f | %10.2f | %14.2f |\n", datos[i], diferencia, dif_cuadrado);
+    }
+
+    printf("--------------------------------------------\n");
+    printf("| SUMA TOTAL | %7.2f %s | %9.2f %s^2 |\n", suma_operacion, unidad, suma_cuadrados, unidad);
+    printf("--------------------------------------------\n");
+
+    float Varianza_Muestral = suma_cuadrados / (n - 1);
+
+    /*Calculo Desviacion Estandar Muestral*/
+    float Desviacion_Muestral = sqrt(Varianza_Muestral);
+
+    /*Calculo Mediana Muestral*/
+    float Mediana;
+    if(n % 2 == 0) { //Si es par
+        float Valor1 = datos[(n / 2) - 1];
+        float Valor2 = datos[(n / 2)];
+
+        Mediana = (Valor1 + Valor2) / 2;
+    }
+    else { //Si es impar
+        Mediana = datos[((n + 1) / 2) - 1];
+    }
+
+    /*Calculo Moda*/
+    float Moda = datos[0];
+    int max_frecuencia = 1;
+    int frecuencia_actual = 1;
+    int conteo_modas = 0;
+    int hay_moda = 0;
+    for (int i = 1; i < n; i++) {
+        if (datos[i] == datos[i - 1]) {
+            frecuencia_actual++;
+        } else {
+            if (frecuencia_actual > max_frecuencia) {
+                max_frecuencia = frecuencia_actual;
+            }
+            frecuencia_actual = 1;
+        }
+    }
+    if (frecuencia_actual > max_frecuencia) max_frecuencia = frecuencia_actual;
+    if (max_frecuencia > 1) {
+        hay_moda = 1;
+        frecuencia_actual = 1;
+        for (int i = 1; i <= n; i++) {
+            if (i < n && datos[i] == datos[i - 1]) {
+                frecuencia_actual++;
+            } else {
+                if (frecuencia_actual == max_frecuencia) {
+                    Moda = datos[i - 1];
+                    conteo_modas++;
+                }
+                frecuencia_actual = 1;
+            }
+        }
+    }
+
+    /*Calculo Rango*/
+    float Rango = datos[n - 1] - datos[0];
+
+    /*Calculo Percentiles*/
+    for(int i = 0; i < percentiles; i++) {
+        float k = percentil[i]; // El valor k que pidió el usuario (ej: 25)
+        float L = (k / 100.0) * (n + 1);
+        
+        int Vi_pos = (int)L;// Parte entera
+        float f = L - Vi_pos;// Parte decimal
+
+        float valor_p;
+        if (Vi_pos < 1) valor_p = datos[0];
+        else if (Vi_pos >= n) valor_p = datos[n - 1];
+        else {
+
+            float Vi = datos[Vi_pos - 1]; 
+            float Vs = datos[Vi_pos];
+            valor_p = Vi + f * (Vs - Vi);
+        }
+        printf("\nPercentil %.0f (Posicion: %.2f) = Valor: %.2f %s", k, L, valor_p, unidad);
+    }
+
+    printf("\nMedia Muestral: %.2f %s", Media_Muestral, unidad);
+    printf("\nVarianza Muestral: %.2f %s^2", Varianza_Muestral, unidad);
+    printf("\nDesviacion Estandar Muestral: %.2f %s", Desviacion_Muestral, unidad);
+    printf("\nMediana Muestral: %.2f %s", Mediana, unidad);
+
+    if (hay_moda == 0) {
+        printf("\nModa: No hay moda (datos únicos)");
+    } else if (conteo_modas > 1) {
+        printf("\nModa: Existen %d modas (Multimodal): ", conteo_modas);
+        
+        // Bucle para buscar e imprimir cada valor que sea moda
+        int frec_aux = 1;
+        for (int i = 1; i <= n; i++) {
+            if (i < n && datos[i] == datos[i - 1]) {
+                frec_aux++;
+            } else {
+                if (frec_aux == max_frecuencia) {
+                    printf("%.2f ", datos[i - 1]);
+                }
+                frec_aux = 1;
+            }
+        }
+        printf("%s", unidad);
+    } else {
+        printf("\nModa: %.2f %s", Moda, unidad);
+    }
+
+    printf("\nRango: %.2f %s", Rango, unidad);
+}
