@@ -1,0 +1,176 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <math.h>
+
+#define Max_Datos 200    
+#define Minimo 150       
+#define Maximo 1300      
+#define Max_Percentil 100
+
+/* --- FUNCIONES DE ORDENAMIENTO (QUICKSORT) --- */
+void Intercambio(float *a, float *b) {
+    float Temp = *a;
+    *a = *b;
+    *b = Temp;
+}
+
+int Particion(float arr[], int menor, int mayor) {
+    int centro = menor + (mayor - menor) / 2;
+    if (arr[menor] > arr[centro]) Intercambio(&arr[menor], &arr[centro]);
+    if (arr[menor] > arr[mayor]) Intercambio(&arr[menor], &arr[mayor]);
+    if (arr[centro] > arr[mayor]) Intercambio(&arr[centro], &arr[mayor]);
+
+    Intercambio(&arr[centro], &arr[mayor]);
+    float pivote = arr[mayor];
+    int i = (menor - 1);
+
+    for (int j = menor; j < mayor; j++) {
+        if (arr[j] < pivote) {
+            i++;
+            Intercambio(&arr[i], &arr[j]);
+        }
+    }
+    Intercambio(&arr[i + 1], &arr[mayor]);
+    return (i + 1);
+}
+
+void Quick_Sort(float arr[], int menor, int mayor) {
+    if (menor < mayor) {
+        int idx_pivote = Particion(arr, menor, mayor);
+        Quick_Sort(arr, menor, idx_pivote - 1);
+        Quick_Sort(arr, idx_pivote + 1, mayor);
+    }
+}
+
+int main() {
+    float datos[Max_Datos];
+    int n = Max_Datos; 
+    float suma = 0;
+    char unidad[] = "us"; 
+
+    // Inicializar generador aleatorio
+    srand(time(NULL));
+    int rango = Maximo - Minimo + 1;
+
+    printf("--- GENERANDO DATOS DE RENDIMIENTO (SHADERS) ---\n");
+    for(int i = 0; i < n; i++) {
+        int valor_aleatorio = Minimo + (rand() % rango);
+        datos[i] = (float)valor_aleatorio;
+        suma += datos[i];
+        printf("[%d] ", valor_aleatorio);
+        if((i + 1) % 10 == 0) printf("\n");
+    }
+
+    // Configuración de Percentiles
+    float percentil_buscado[Max_Percentil];
+    int num_percentiles;
+    printf("\n¿Cuantos percentiles desea calcular? ");
+    scanf("%d", &num_percentiles);
+
+    for(int i = 0; i < num_percentiles; i++) {
+        printf("Ingrese el valor del percentil [%d]: ", i + 1);
+        scanf("%f", &percentil_buscado[i]);
+    }
+
+    // Ordenar datos para cálculos de posición y tendencia
+    Quick_Sort(datos, 0, n - 1);
+
+    printf("\nDatos ordenados:\n");
+    for(int i = 0; i < n; i++) {
+        printf("%.2f ", datos[i]);
+        if((i + 1) % 10 == 0) printf("\n");
+    }
+
+    /* --- CÁLCULOS ESTADÍSTICOS --- */
+    float Media_Muestral = suma / n;
+    float suma_diferencias = 0;
+    float suma_cuadrados = 0;
+
+    printf("\nTabla de Varianza Muestral\n");
+    printf("------------------------------------------------------------\n");
+    printf("|      xi      |      xi - x      |       (xi - x)^2       |\n");
+    printf("------------------------------------------------------------\n");
+    
+    for(int i = 0; i < n; i++) {
+        float diferencia = datos[i] - Media_Muestral;
+        float dif_cuadrado = diferencia * diferencia;
+        suma_diferencias += diferencia;
+        suma_cuadrados += dif_cuadrado;
+
+        if(i < 10 || i > n - 11) {
+            printf("| %12.2f | %16.2f | %22.2f |\n", datos[i], diferencia, dif_cuadrado);
+        } else if (i == 10) {
+            printf("|      ...     |        ...       |           ...          |\n");
+        }
+    }
+    printf("------------------------------------------------------------\n");
+    printf("| SUMA TOTAL   | %13.2f %s | %18.2f %s^2 |\n", suma_diferencias, unidad, suma_cuadrados, unidad);
+    printf("------------------------------------------------------------\n");
+
+    /* --- CÁLCULO DE MODA CON VARIABLES --- */
+    int max_frecuencia = 1, frecuencia_actual = 1;
+    float modas_detectadas[Max_Datos]; 
+    int conteo_modas = 0;
+    int hay_moda = 0;
+
+    // Identificar frecuencia máxima
+    for (int i = 1; i < n; i++) {
+        if (datos[i] == datos[i - 1]) frecuencia_actual++;
+        else {
+            if (frecuencia_actual > max_frecuencia) max_frecuencia = frecuencia_actual;
+            frecuencia_actual = 1;
+        }
+    }
+    if (frecuencia_actual > max_frecuencia) max_frecuencia = frecuencia_actual;
+
+    // Almacenar modas en la variable modas_detectadas
+    if (max_frecuencia > 1) {
+        hay_moda = 1;
+        frecuencia_actual = 1;
+        for (int i = 1; i <= n; i++) {
+            if (i < n && datos[i] == datos[i - 1]) {
+                frecuencia_actual++;
+            } else {
+                if (frecuencia_actual == max_frecuencia) {
+                    modas_detectadas[conteo_modas] = datos[i - 1];
+                    conteo_modas++;
+                }
+                frecuencia_actual = 1;
+            }
+        }
+    }
+
+    /* --- RESULTADOS FINALES --- */
+    printf("\n--- RESULTADOS ESTADISTICOS ---");
+    
+    for(int i = 0; i < num_percentiles; i++) {
+        float L = (percentil_buscado[i] / 100.0) * (n + 1);
+        int pos = (int)L;
+        float f = L - pos;
+        float v_p = (pos < 1) ? datos[0] : (pos >= n) ? datos[n-1] : datos[pos-1] + f * (datos[pos] - datos[pos-1]);
+        printf("\nPercentil %.0f (Posicion: %.2f) = Valor: %.2f %s", percentil_buscado[i], L, v_p, unidad);
+    }
+
+    printf("\n\nMedia Muestral: %.2f %s", Media_Muestral, unidad);
+    printf("\nVarianza Muestral: %.2f %s^2", suma_cuadrados / (n - 1), unidad);
+    printf("\nDesviacion Estandar Muestral: %.2f %s", sqrt(suma_cuadrados / (n - 1)), unidad);
+    printf("\nMediana Muestral: %.2f %s", (n % 2 == 0) ? (datos[n/2 - 1] + datos[n/2]) / 2 : datos[n/2], unidad);
+
+    // Impresión de Moda utilizando la lógica de tu primera versión
+    if (hay_moda == 0) {
+        printf("\nModa: No hay moda (datos unicos)");
+    } else if (conteo_modas > 1) {
+        printf("\nModa: Existen %d modas (Multimodal): ", conteo_modas);
+        for (int i = 0; i < conteo_modas; i++) {
+            printf("%.2f ", modas_detectadas[i]);
+        }
+        printf("%s (Frecuencia: %d)", unidad, max_frecuencia);
+    } else {
+        printf("\nModa: %.2f %s (Frecuencia: %d)", modas_detectadas[0], unidad, max_frecuencia);
+    }
+
+    printf("\nRango: %.2f %s\n", datos[n - 1] - datos[0], unidad);
+
+    return 0;
+}
