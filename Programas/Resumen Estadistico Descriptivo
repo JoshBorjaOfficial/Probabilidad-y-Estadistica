@@ -3,28 +3,40 @@
 #include <time.h>
 #include <math.h>
 
-#define Max_Datos 200    
-#define Minimo 150       
-#define Maximo 1300      
-#define Max_Percentil 100
+/* Definición de constantes para el control de la muestra y el entorno de simulación */
+#define Max_Datos 200      // Tamaño de la muestra (n)
+#define Minimo 150         // Límite inferior de latencia en microsegundos
+#define Maximo 1300        // Límite superior de latencia en microsegundos
+#define Max_Percentil 100  // Capacidad máxima de almacenamiento de percentiles
 
-/* --- FUNCIONES DE ORDENAMIENTO (QUICKSORT) --- */
+/* --- MÓDULOS DE ORDENAMIENTO DE DATOS (ALGORITMO QUICKSORT) --- */
+
+/**
+ * Intercambia los valores de dos direcciones de memoria.
+ * Utilizado para la reestructuración de la muestra durante el ordenamiento.
+ */
 void Intercambio(float *a, float *b) {
     float Temp = *a;
     *a = *b;
     *b = Temp;
 }
 
+/**
+ * Define el pivote y particiona el arreglo de datos.
+ * Utiliza la técnica de "Mediana de tres" para optimizar el rendimiento del algoritmo.
+ */
 int Particion(float arr[], int menor, int mayor) {
     int centro = menor + (mayor - menor) / 2;
+    // Ordenamiento preventivo de extremos y centro para selección de pivote
     if (arr[menor] > arr[centro]) Intercambio(&arr[menor], &arr[centro]);
     if (arr[menor] > arr[mayor]) Intercambio(&arr[menor], &arr[mayor]);
     if (arr[centro] > arr[mayor]) Intercambio(&arr[centro], &arr[mayor]);
 
-    Intercambio(&arr[centro], &arr[mayor]);
+    Intercambio(&arr[centro], &arr[mayor]); // Posicionamiento del pivote
     float pivote = arr[mayor];
     int i = (menor - 1);
 
+    // Reordenamiento de elementos respecto al valor del pivote
     for (int j = menor; j < mayor; j++) {
         if (arr[j] < pivote) {
             i++;
@@ -35,34 +47,39 @@ int Particion(float arr[], int menor, int mayor) {
     return (i + 1);
 }
 
+/**
+ * Implementación recursiva del algoritmo QuickSort.
+ * Complejidad promedio: O(n log n).
+ */
 void Quick_Sort(float arr[], int menor, int mayor) {
     if (menor < mayor) {
         int idx_pivote = Particion(arr, menor, mayor);
-        Quick_Sort(arr, menor, idx_pivote - 1);
-        Quick_Sort(arr, idx_pivote + 1, mayor);
+        Quick_Sort(arr, menor, idx_pivote - 1); // Sub-arreglo izquierdo
+        Quick_Sort(arr, idx_pivote + 1, mayor); // Sub-arreglo derecho
     }
 }
 
 int main() {
+    /* Declaración de variables principales y estructuras de datos */
     float datos[Max_Datos];
     int n = Max_Datos; 
     float suma = 0;
     char unidad[] = "us"; 
 
-    // Inicializar generador aleatorio
-    srand(time(NULL));
+    /* Fase de Generación de Muestra Aleatoria */
+    srand(time(NULL)); // Inicialización de semilla para aleatoriedad real
     int rango = Maximo - Minimo + 1;
 
     printf("--- GENERANDO DATOS DE RENDIMIENTO (SHADERS) ---\n");
     for(int i = 0; i < n; i++) {
         int valor_aleatorio = Minimo + (rand() % rango);
         datos[i] = (float)valor_aleatorio;
-        suma += datos[i];
+        suma += datos[i]; // Acumulación para cálculo de media
         printf("[%d] ", valor_aleatorio);
-        if((i + 1) % 10 == 0) printf("\n");
+        if((i + 1) % 10 == 0) printf("\n"); // Formato de visualización de 10 columnas
     }
 
-    // Configuración de Percentiles
+    /* Interacción con el usuario: Configuración de Medidas de Posición (Percentiles) */
     float percentil_buscado[Max_Percentil];
     int num_percentiles;
     printf("\n¿Cuantos percentiles desea calcular? ");
@@ -73,7 +90,7 @@ int main() {
         scanf("%f", &percentil_buscado[i]);
     }
 
-    // Ordenar datos para cálculos de posición y tendencia
+    /* Ejecución del ordenamiento para permitir cálculos de mediana, moda y percentiles */
     Quick_Sort(datos, 0, n - 1);
 
     printf("\nDatos ordenados:\n");
@@ -82,7 +99,7 @@ int main() {
         if((i + 1) % 10 == 0) printf("\n");
     }
 
-    /* --- CÁLCULOS ESTADÍSTICOS --- */
+    /* --- ANÁLISIS DE DISPERSIÓN: TABLA DE VARIANZA --- */
     float Media_Muestral = suma / n;
     float suma_diferencias = 0;
     float suma_cuadrados = 0;
@@ -93,11 +110,12 @@ int main() {
     printf("------------------------------------------------------------\n");
     
     for(int i = 0; i < n; i++) {
-        float diferencia = datos[i] - Media_Muestral;
-        float dif_cuadrado = diferencia * diferencia;
-        suma_diferencias += diferencia;
-        suma_cuadrados += dif_cuadrado;
+        float diferencia = datos[i] - Media_Muestral; // Desviación respecto a la media
+        float dif_cuadrado = diferencia * diferencia; // Desviación al cuadrado
+        suma_diferencias += diferencia; // Propiedad: La suma de desviaciones debe aproximarse a cero
+        suma_cuadrados += dif_cuadrado; // Numerador de la varianza
 
+        // Visualización resumida (Primeros 10 y últimos 10 datos)
         if(i < 10 || i > n - 11) {
             printf("| %12.2f | %16.2f | %22.2f |\n", datos[i], diferencia, dif_cuadrado);
         } else if (i == 10) {
@@ -108,13 +126,13 @@ int main() {
     printf("| SUMA TOTAL   | %13.2f %s | %18.2f %s^2 |\n", suma_diferencias, unidad, suma_cuadrados, unidad);
     printf("------------------------------------------------------------\n");
 
-    /* --- CÁLCULO DE MODA CON VARIABLES --- */
+    /* --- ANÁLISIS DE TENDENCIA CENTRAL: MODA --- */
     int max_frecuencia = 1, frecuencia_actual = 1;
     float modas_detectadas[Max_Datos]; 
     int conteo_modas = 0;
     int hay_moda = 0;
 
-    // Identificar frecuencia máxima
+    // Identificación de la frecuencia máxima en la muestra ordenada
     for (int i = 1; i < n; i++) {
         if (datos[i] == datos[i - 1]) frecuencia_actual++;
         else {
@@ -124,7 +142,7 @@ int main() {
     }
     if (frecuencia_actual > max_frecuencia) max_frecuencia = frecuencia_actual;
 
-    // Almacenar modas en la variable modas_detectadas
+    // Registro de valores que cumplen con la frecuencia máxima (detección multimodal)
     if (max_frecuencia > 1) {
         hay_moda = 1;
         frecuencia_actual = 1;
@@ -141,36 +159,100 @@ int main() {
         }
     }
 
-    /* --- RESULTADOS FINALES --- */
+    /* --- CÁLCULO E IMPRESIÓN DE MEDIDAS DESCRIPTIVAS --- */
     printf("\n--- RESULTADOS ESTADISTICOS ---");
     
+    // Cálculo de percentiles mediante interpolación lineal
     for(int i = 0; i < num_percentiles; i++) {
-        float L = (percentil_buscado[i] / 100.0) * (n + 1);
+        float L = (percentil_buscado[i] / 100.0) * (n + 1); // Posición teórica
         int pos = (int)L;
-        float f = L - pos;
+        float f = L - pos; // Fracción decimal para ajuste de valor
         float v_p = (pos < 1) ? datos[0] : (pos >= n) ? datos[n-1] : datos[pos-1] + f * (datos[pos] - datos[pos-1]);
         printf("\nPercentil %.0f (Posicion: %.2f) = Valor: %.2f %s", percentil_buscado[i], L, v_p, unidad);
     }
 
     printf("\n\nMedia Muestral: %.2f %s", Media_Muestral, unidad);
-    printf("\nVarianza Muestral: %.2f %s^2", suma_cuadrados / (n - 1), unidad);
-    printf("\nDesviacion Estandar Muestral: %.2f %s", sqrt(suma_cuadrados / (n - 1)), unidad);
-    printf("\nMediana Muestral: %.2f %s", (n % 2 == 0) ? (datos[n/2 - 1] + datos[n/2]) / 2 : datos[n/2], unidad);
+    printf("\nVarianza Muestral (n-1): %.2f %s^2", suma_cuadrados / (n - 1), unidad);
+    printf("\nDesviacion Estandar: %.2f %s", sqrt(suma_cuadrados / (n - 1)), unidad);
+    printf("\nMediana: %.2f %s", (n % 2 == 0) ? (datos[n/2 - 1] + datos[n/2]) / 2 : datos[n/2], unidad);
 
-    // Impresión de Moda utilizando la lógica de tu primera versión
-    if (hay_moda == 0) {
-        printf("\nModa: No hay moda (datos unicos)");
-    } else if (conteo_modas > 1) {
-        printf("\nModa: Existen %d modas (Multimodal): ", conteo_modas);
-        for (int i = 0; i < conteo_modas; i++) {
-            printf("%.2f ", modas_detectadas[i]);
-        }
+    // Reporte de Moda
+    if (hay_moda == 0) printf("\nModa: No hay moda (Serie amodal)");
+    else {
+        printf("\nModa (%s): ", (conteo_modas > 1) ? "Multimodal" : "Unimodal");
+        for (int i = 0; i < conteo_modas; i++) printf("%.2f ", modas_detectadas[i]);
         printf("%s (Frecuencia: %d)", unidad, max_frecuencia);
-    } else {
-        printf("\nModa: %.2f %s (Frecuencia: %d)", modas_detectadas[0], unidad, max_frecuencia);
+    }
+    printf("\nRango: %.2f %s\n", datos[n - 1] - datos[0], unidad);
+    
+    /* --- REPRESENTACIÓN GRÁFICA: HISTOGRAMA DE FRECUENCIAS --- */
+    printf("\n--- HISTOGRAMA DE FRECUENCIAS ---\n");
+    int k = 9; // Aplicación de la Regla de Sturges para definición de intervalos
+    float rango_h = datos[n-1] - datos[0];
+    float amplitud = rango_h / k; // Determinación del ancho de clase
+    int f_acumulada = 0;
+
+    printf("--------------------------------------------------------------------------\n");
+    printf("%-20s | %-10s | %-15s | %-12s\n", "Intervalo (Limites)", "Frec.", "F. Relativa", "F. Acum.");
+    printf("--------------------------------------------------------------------------\n");
+
+    for (int i = 0; i < k; i++) {
+        float inferior = datos[0] + (i * amplitud);
+        float superior = (i == k - 1) ? datos[n-1] + 1 : inferior + amplitud; 
+        int f_directa = 0;
+
+        // Conteo de frecuencias por intervalo de clase
+        for (int j = 0; j < n; j++) {
+            if (datos[j] >= inferior && datos[j] < superior) f_directa++;
+        }
+
+        f_acumulada += f_directa; // Cálculo de frecuencia absoluta acumulada
+        float f_relativa = (float)f_directa / n; // Cálculo de peso porcentual (Frecuencia relativa)
+
+        printf("[%7.2f - %7.2f) | %-10d | %-15.3f | %-12d ", inferior, superior, f_directa, f_relativa, f_acumulada);
+        printf("\n");
+    }
+    printf("--------------------------------------------------------------------------\n");
+
+    /* --- REPRESENTACIÓN GRÁFICA: DIAGRAMA DE TALLO Y HOJAS --- */
+    printf("\n--- DIAGRAMA DE TALLO Y HOJAS ---\n");
+    printf("-------------------------------------------------------------------------------------------------\n");
+    // Formateo de columnas: Tallo (Centena), Hoja (Decena), Frecuencia Directa y Acumulada
+    printf("%-10s | %-50s | %-10s | %-12s\n", "Tallo (C)", "Hojas (D)", "Frec.", "F. Acum.");
+    printf("-------------------------------------------------------------------------------------------------\n");
+
+    int tallo_actual = -1;
+    int f_tallo = 0;
+    int f_acum_tallo = 0;
+    int contador_caracteres = 0;
+
+    for (int i = 0; i < n; i++) {
+        int tallo = (int)datos[i] / 100;
+        int hoja = ((int)datos[i] % 100) / 10;
+
+        // Detección de cambio de tallo para impresión de resumen de línea
+        if (tallo != tallo_actual) {
+            if (tallo_actual != -1) {
+                // Relleno dinámico de espacios para garantizar alineación de columnas de frecuencia
+                for (int s = contador_caracteres; s < 50; s++) printf(" ");
+                f_acum_tallo += f_tallo;
+                printf(" | %-10d | %-12d\n", f_tallo, f_acum_tallo);
+            }
+            printf("%-10d | ", tallo);
+            tallo_actual = tallo;
+            f_tallo = 0;
+            contador_caracteres = 0;
+        }
+        printf("%d ", hoja);
+        f_tallo++;
+        contador_caracteres += 2; // Incremento de ancho basado en formato "%d "
     }
 
-    printf("\nRango: %.2f %s\n", datos[n - 1] - datos[0], unidad);
+    // Finalización de la última categoría del diagrama
+    for (int s = contador_caracteres; s < 50; s++) printf(" ");
+    f_acum_tallo += f_tallo;
+    printf(" | %-10d | %-12d\n", f_tallo, f_acum_tallo);
+    printf("-------------------------------------------------------------------------------------------------\n");
 
     return 0;
 }
